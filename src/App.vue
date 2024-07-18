@@ -1,5 +1,6 @@
 <template>
   <!-- <input type="number" v-model="text" /> -->
+  <input type="text" />
   <div v-if="startDate != null">กำลังอัด</div>
   <br />
   <br />
