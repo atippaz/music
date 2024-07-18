@@ -34,49 +34,59 @@
 }
 </style>
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
-const text = ref(0);
+import { onMounted, onUnmounted, ref } from "vue";
 import { keys } from "@/key";
+const text = ref(0);
 const ctx = new AudioContext();
+interface note {
+  note: number;
+  start: number;
+  end: number;
+}
+interface NoteReturn {
+  node: OscillatorNode;
+  note: note | null;
+}
 function ran(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-let log = [];
+let log: NoteReturn[] = [];
 
 const startDate: any = ref(null);
 const index: any = ref(null);
-function playSong(
-  song: { note: number; start: number; end: number }[],
-  _index: number
-) {
+function playSong(song: NoteReturn[], _index: number) {
   index.value = _index;
   console.log(song);
   song.forEach((n, i) => {
-    let y = n.start;
-    console.log("startsss", y);
-    setTimeout(() => {
-      let node = note(n.note);
-      let sttime = n.end - n.start;
-
-      console.log("s", sttime);
-
+    const { note: _node } = n;
+    if (_node) {
+      let y = _node.start;
+      console.log("startsss", y);
       setTimeout(() => {
-        if (i + 1 === song.length) {
-          index.value = null;
-        }
-        (node as OscillatorNode).stop();
-      }, sttime);
-      // if (i + 1 === song.length) {
-      //   setTimeout(() => {
-      //     index.value = null;
-      //   }, 650);
-      // }
-    }, y);
+        let node = note(_node.note);
+        let sttime = _node.end - _node.start;
+
+        console.log("s", sttime);
+
+        setTimeout(() => {
+          if (i + 1 === song.length) {
+            index.value = null;
+          }
+          node.node.stop();
+        }, sttime);
+      }, y);
+    }
+
+    // if (i + 1 === song.length) {
+    //   setTimeout(() => {
+    //     index.value = null;
+    //   }, 650);
+    // }
   });
 }
 
 let stopDate = null;
-const allLog = ref([]);
+const allLog = ref<NoteReturn[][]>([]);
 function start() {
   startDate.value = new Date();
 }
@@ -90,7 +100,11 @@ function end() {
 let keyList: { key: string; value: number }[] = [];
 let coolTime = false;
 const scales = [0, 2, 4, 5, 7, 9, 10, 12];
-let playlist: any = [];
+interface playlist {
+  key: string;
+  node: NoteReturn;
+}
+let playlist: playlist[] = [];
 onMounted(() => {
   let start = 52;
   keys.forEach((x, i) => {
@@ -122,16 +136,16 @@ onMounted(() => {
     console.log(playlist);
     const node = playlist.find((x) => x.key === e.key);
     if (node != undefined) {
-      if (startDate.value != null) {
-        node.node[0].stop();
-        node.node[1].end = Math.abs(
-          stop!.getTime() - startDate.value.getTime()
-        );
-        log.push(node.node[1]);
-      } else {
-        node.node.stop();
-      }
-
+      setTimeout(() => {
+        if (startDate.value != null) {
+          node.node.node.stop();
+          node.node.note!.end =
+            Math.abs(stop!.getTime() - node.node.note!.end) + 250;
+          log.push(node.node);
+        } else {
+          node.node.node.stop();
+        }
+      }, 250);
       playlist = playlist.filter((e) => e != node);
     }
     coolTime = false;
@@ -142,14 +156,14 @@ function getNote(e: string) {
 
   // return res;
 
-  return keyList.find((x) => x.key == e)?.value || 1;
+  return keyList.find((x) => x.key == e.toLowerCase())?.value || 1;
 }
 onUnmounted(() => {
   window.removeEventListener("keydown", () => {});
 
   window.removeEventListener("keyup", () => {});
 });
-function note(f: number) {
+function note(f: number): NoteReturn {
   //[0,2,4,5,7,9,11,12]
   console.log(f);
   const playTime = 0.1;
@@ -185,25 +199,25 @@ function note(f: number) {
   // }
 
   if (startDate.value != null) {
-    return [
+    return {
       node,
-      {
+      note: {
         note: f,
         start: Math.abs(new Date()!.getTime() - startDate.value.getTime()),
-        end: null,
+        end: startDate.value.getTime(),
       },
-    ];
+    };
   } else {
-    return node;
+    return { node, note: null };
   }
-  return [
-    node,
-    {
-      note: f,
-      start: Math.abs(new Date()!.getTime() - startDate.value.getTime()),
-      end: null,
-    },
-  ];
-  node.stop(ctx.currentTime + playTime + duration);
+  // return [
+  //   node,
+  //   {
+  //     note: f,
+  //     start: Math.abs(new Date()!.getTime() - startDate.value.getTime()),
+  //     end: null,
+  //   },
+  // ];
+  // node.stop(ctx.currentTime + playTime + duration);
 }
 </script>
